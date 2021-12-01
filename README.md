@@ -1,5 +1,2 @@
 # woodfrog
-Custom C# Chess Engine
-
-
-Written by Joseph Darge
+Custom C# Chess Engine written by Joseph Darge

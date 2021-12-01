@@ -6,7 +6,8 @@ namespace woodfrog
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Board gameBoard = new Board();
+            gameBoard.printBoard();
         }
     }
 }

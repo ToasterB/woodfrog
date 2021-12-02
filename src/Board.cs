@@ -56,8 +56,67 @@ namespace woodfrog
         // Move() moves the piece at the given origin square to the given destination square, as well as
         // performing the extra changes needed to moves that involve castling or en passant. It assumes that 
         // all moves inputted are valid, legal moves
-        public void Move(Move inputmove)
+
+        ulong originBB = 0;
+        ulong targetBB = 0;
+        ulong originTargetBB = 0;
+        public void Move(Move inputMove)
         {
+            originBB = (ulong)1 << inputMove.origin;
+            targetBB = (ulong)1 << inputMove.target;
+            originTargetBB = originBB | targetBB;
+            
+            inputMove.capturedPiece = boardMailBox[inputMove.target];
+
+            // Mailbox
+            // Castling Handler
+            if(boardMailBox[inputMove.origin] == 6 && inputMove.origin == 4)
+            {
+                if(inputMove.target == 6)
+                {
+                    boardMailBox[7] = 0;
+                    boardMailBox[4] = 0;
+                    boardMailBox[6] = 6;
+                    boardMailBox[5] = 4;
+                } 
+                else if(inputMove.target == 2) 
+                { 
+                    boardMailBox[4] = 0;
+                    boardMailBox[0] = 0;
+                    boardMailBox[2] = 6;
+                    boardMailBox[3] = 4;
+                }
+            }
+            else if(boardMailBox[inputMove.origin] == 14 && inputMove.origin == 60)
+            {
+                if (inputMove.target == 62)
+                {
+                    boardMailBox[63] = 0;
+                    boardMailBox[60] = 0;
+                    boardMailBox[62] = 14;
+                    boardMailBox[61] = 12;
+                }
+                else if (inputMove.target == 58)
+                {
+                    boardMailBox[60] = 0;
+                    boardMailBox[56] = 0;
+                    boardMailBox[57] = 14;
+                    boardMailBox[58] = 12;
+                }
+            }
+            else
+            {
+                boardMailBox[inputMove.target] = boardMailBox[inputMove.origin];
+                boardMailBox[inputMove.origin] = 0;
+                
+                // If the move was an en passant capture
+                if(enPassantBoards[whiteToPlay] << inputMove.target == 1)
+                {
+                    enPassantBoards[whiteToPlay] &= (ulong)0 << inputMove.target;
+                    inputMove.capturedPiece = 1 | ((whiteToPlay ^ 1) << 3);
+                }
+            }
+
 
         }
 

@@ -23,10 +23,7 @@ namespace woodfrog
         }
 
 
-        
 
-        static Dictionary<char, int> fileLookup = new() { { 'a', 0 }, { 'b', 1 }, { 'c', 2 }, { 'd', 3 }, 
-                                                     { 'e', 4 }, { 'f', 5 }, { 'g', 6 }, { 'h', 7 }};
         static Dictionary<char, int> promotionLookup = new() { { 'n', 2 }, { 'b', 3 }, { 'r', 4 }, { 'q', 5 } };
 
         // Takes a move in uci format, and converts it to a Move object
@@ -34,13 +31,16 @@ namespace woodfrog
         {
             Move formattedMove = new Move(0, 0, 0, 0);
 
-            formattedMove.origin = fileLookup[uciString[0]] + (int.Parse(uciString[1].ToString()) - 1) * 8;
-            formattedMove.target = fileLookup[uciString[2]] + (int.Parse(uciString[3].ToString()) - 1) * 8;
+            formattedMove.origin = ChessIO.algSquareToInt(uciString.Substring(0, 2));
+            formattedMove.target = ChessIO.algSquareToInt(uciString.Substring(2, 2));
 
-            // Pawn promotion adds a fifth letter to  designate the piece promoted to
+            // Pawn promotion adds a fifth letter to designate the piece promoted to
             if(uciString.Length == 5)
             {
-                formattedMove.promotionPiece = promotionLookup[uciString[4]] | ((formattedMove.target / 56) << 3);
+                formattedMove.promotionPiece = ChessIO.pieceToInt[uciString[4]] ^ ((formattedMove.target / 48) << 3);
+            } else
+            {
+                formattedMove.promotionPiece = 0;
             }
 
             return formattedMove;

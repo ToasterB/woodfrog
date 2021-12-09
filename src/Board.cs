@@ -91,6 +91,7 @@ namespace woodfrog
         ulong targetBB = 0;
         ulong originTargetBB = 0;
         int movedPiece = 0;
+        int capturedPiece = 0;
         Stack<ulong> gameStateStack = new Stack<ulong>();
 
         public void Move(Move inputMove)
@@ -110,10 +111,11 @@ namespace woodfrog
 
             // Set variables for the pieces being moved and captured (if applicable)
             movedPiece = boardMailBox[inputMove.origin];
-            inputMove.capturedPiece = boardMailBox[inputMove.target];
+            capturedPiece = boardMailBox[inputMove.target];
+            
 
             // Increment halfmove counter
-            if(inputMove.capturedPiece == 0 && (movedPiece & ~(1 << 3)) != 1)
+            if(capturedPiece == 0 && (movedPiece & ~(1 << 3)) != 1)
             {
                 halfMoveCounter++;
             }
@@ -124,15 +126,16 @@ namespace woodfrog
 
             // Move target piece to target square, and removed captured piece
             pieceBitBoards[movedPiece] ^= originTargetBB;
-            pieceBitBoards[boardMailBox[inputMove.target]] ^= targetBB;
+            pieceBitBoards[boardMailBox[inputMove.target]] &= ~targetBB;
             boardMailBox[inputMove.target] = movedPiece;
             boardMailBox[inputMove.origin] = 0;
 
             // If move is an en passant capture
             if ((targetBB & enPassantBoard) != 0)
             {
-                pieceBitBoards[9 ^ (colourToPlay << 3)] &= ~(ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8));
-                inputMove.capturedPiece = 1 | ((colourToPlay ^ 1) << 3);
+                pieceBitBoards[9 ^ (colourToPlay << 3)] &= ~((ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8)));
+                boardMailBox[inputMove.target - (colourToPlay == 0 ? 8 : -8)] = 0;
+                capturedPiece = 1 | ((colourToPlay ^ 1) << 3);
             }
             enPassantBoard = 0;
 
@@ -208,23 +211,91 @@ namespace woodfrog
             else if(inputMove.promotionPiece != 0)
             {
                 boardMailBox[inputMove.target] = inputMove.promotionPiece;
-                pieceBitBoards[movedPiece] &= ~(ulong)1 << inputMove.target;
+                pieceBitBoards[movedPiece] &= ~((ulong)1 << inputMove.target);
                 pieceBitBoards[inputMove.promotionPiece] |= (ulong)1 << inputMove.target;
             }
 
+            gameStateStack.Push((ulong)capturedPiece);
             colourToPlay ^= 1;
-
         }
 
         //
         public void unMove(Move inputMove)
         {
+            colourToPlay ^= 1;
+
+            capturedPiece = (int)gameStateStack.Pop();
             halfMoveCounter = gameStateStack.Pop();
-            for(int x = 3; x >= 0; x++)
+            for(int x = 3; x >= 0; x--)
             {
                 castlingRights[x] = gameStateStack.Pop();
             }
             enPassantBoard = gameStateStack.Pop();
+            
+
+            // Set up move bitboards
+            originBB = (ulong)1 << inputMove.origin;
+            targetBB = (ulong)1 << inputMove.target;
+            originTargetBB = originBB | targetBB;
+
+            // If promoting pawn, change it back to a pawn
+            if (inputMove.promotionPiece != 0)
+            {
+                boardMailBox[inputMove.target] = 1 | ((colourToPlay ^ 1) << 3);
+                pieceBitBoards[boardMailBox[inputMove.target]] |= (ulong)1 << inputMove.target;
+                pieceBitBoards[inputMove.promotionPiece] &= ~((ulong)1 << inputMove.target);
+            }
+
+            // Move piece back to original square
+            pieceBitBoards[boardMailBox[inputMove.target]] ^= originTargetBB;
+            boardMailBox[inputMove.origin] = boardMailBox[inputMove.target];
+            boardMailBox[inputMove.target] = 0;
+
+            // If the move was an en passant capture, put the pawn back in the correct position
+            if((enPassantBoard & ((ulong)1 << inputMove.target)) > 1)
+            {
+                pieceBitBoards[9 ^ (colourToPlay << 3)] |= (ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8));
+                boardMailBox[inputMove.target - (colourToPlay == 0 ? 8 : -8)] = capturedPiece;
+            } 
+            // Otherwise put captured piece back in the target square
+            else
+            {
+                boardMailBox[inputMove.target] = capturedPiece;
+                pieceBitBoards[capturedPiece] |= (ulong)1 << inputMove.target;
+            }
+
+            // If the move was castling, put the rook back in the right place
+            if ((castlingRights[0] == 1 || castlingRights[1] == 1) && boardMailBox[inputMove.origin] == 6)
+            {
+                if (inputMove.target == 2)
+                {
+                    boardMailBox[0] = 4;
+                    boardMailBox[3] = 0;
+                    pieceBitBoards[4] ^= 0b1001;
+                }
+                else if (inputMove.target == 6)
+                {
+                    boardMailBox[7] = 4;
+                    boardMailBox[5] = 0;
+                    pieceBitBoards[4] ^= 0b101 << 5;
+                }
+            }
+            else if ((castlingRights[2] == 1 || castlingRights[3] == 1) && boardMailBox[inputMove.origin] == 14)
+            {
+                if (inputMove.target == 58)
+                {
+                    boardMailBox[56] = 12;
+                    boardMailBox[58] = 0;
+                    pieceBitBoards[12] ^= (ulong)0b1001 << 56;
+                }
+                else if (inputMove.target == 62)
+                {
+                    boardMailBox[63] = 12;
+                    boardMailBox[61] = 0;
+                    pieceBitBoards[12] ^= (ulong)0b101 << 61;
+                }
+            }
+
         }
 
         public void printBoard()

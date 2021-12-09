@@ -14,11 +14,10 @@ namespace woodfrog
                                     // 9 -> 14 (1001 -> 1110) = Black 
         public int promotionPiece;  // Same as above, but records pawn promotion
 
-        public Move(int target, int origin, int capturedPiece,  int promotionPiece)
+        public Move(int target, int origin,  int promotionPiece)
         {
             this.target = target;
             this.origin = origin;
-            this.capturedPiece = capturedPiece;
             this.promotionPiece = promotionPiece;
         }
 
@@ -29,7 +28,7 @@ namespace woodfrog
         // Takes a move in uci format, and converts it to a Move object
         public static Move UCItoMove(string uciString)
         {
-            Move formattedMove = new Move(0, 0, 0, 0);
+            Move formattedMove = new Move(0, 0, 0);
 
             formattedMove.origin = ChessIO.algSquareToInt(uciString.Substring(0, 2));
             formattedMove.target = ChessIO.algSquareToInt(uciString.Substring(2, 2));

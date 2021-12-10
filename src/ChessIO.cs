@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace woodfrog
 {
-    class ChessIO
+    static class ChessIO
     {
         public static Dictionary<char, int> pieceToInt = new Dictionary<char, int> { { 'P', 1 }, { 'N', 2 }, { 'B', 3 }, { 'R', 4 }, { 'Q', 5 }, { 'K', 6 },
                                                                                      { 'p', 9 }, { 'n', 10 }, { 'b', 11 }, { 'r', 12 }, { 'q', 13 }, { 'k', 14 },};

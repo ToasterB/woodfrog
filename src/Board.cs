@@ -9,13 +9,17 @@ namespace woodfrog
     class Board
     {
         // Bit board declarations
-        ulong[] pieceBitBoards = new ulong[16]; // 1 -> 6  (0001 -> 0110) = White Pawn, Knight, Bishop, Rook, Queen and King respectively
-                                                // 9 -> 14 (1001 -> 1110) = Black 
-                                                // 7 = Combined White Pieces      15 = Combined Black Pieces
-        ulong enPassantBoard = 0;
+        public ulong[] pieces { get; private set; } = new ulong[16];  // 1 -> 6  (0001 -> 0110) = White Pawn, Knight, Bishop, Rook, Queen and King respectively
+                                                                              // 9 -> 14 (1001 -> 1110) = Black 
+                                                                              // 7 = Combined White Pieces      15 = Combined Black Pieces
+        public ulong enPassant { get; private set; }
+
         ulong[] castlingRights = new ulong[4];      // White Kingside, White Queenside, Black Kingside, Black Queenside
-        int colourToPlay;
+        public int colourToPlay { get; private set; }
         ulong halfMoveCounter;
+
+        public List<Move> attackingMoveList = new List<Move>();
+        public List<Move> quietMoveList = new List<Move>();
 
         // Reduntant piece positions, indexed by square. Makes it easier to find which pieces are one which squares
         int[] boardMailBox = new int[64]; 
@@ -44,19 +48,19 @@ namespace woodfrog
                     else
                     {
                         boardMailBox[(56 - i * 8) + j] = ChessIO.pieceToInt[testChar];
-                        pieceBitBoards[ChessIO.pieceToInt[testChar]] |= (ulong)1 << (56 - i * 8) + j;
+                        pieces[ChessIO.pieceToInt[testChar]] |= (ulong)1 << (56 - i * 8) + j;
                     }
                     charIndex++;
                 }
             }
 
-            foreach(ulong bb in pieceBitBoards[1..6])
+            foreach(ulong bb in pieces[1..6])
             {
-                pieceBitBoards[7] |= bb;
+                pieces[7] |= bb;
             }
-            foreach(ulong bb in pieceBitBoards[9..14])
+            foreach(ulong bb in pieces[9..14])
             {
-                pieceBitBoards[15] |= bb;
+                pieces[15] |= bb;
             }
 
             // Colour to play
@@ -72,7 +76,7 @@ namespace woodfrog
             // En passant square
             if(fenFields[3] != "-")
             {
-                enPassantBoard |= (ulong)1 << ChessIO.algSquareToInt(fenFields[3]);
+                enPassant |= (ulong)1 << ChessIO.algSquareToInt(fenFields[3]);
             }
 
             // Halfmove clock
@@ -92,17 +96,17 @@ namespace woodfrog
         ulong originTargetBB = 0;
         int movedPiece = 0;
         int capturedPiece = 0;
-        Stack<ulong> gameStateStack = new Stack<ulong>();
+        Stack<ulong> gamestateStack = new Stack<ulong>();
 
         public void Move(Move inputMove)
         {
             // Save the enPassantBB before the move, so that we can unmake the move later
-            gameStateStack.Push(enPassantBoard);
+            gamestateStack.Push(enPassant);
             foreach(ulong x in castlingRights) 
             { 
-                gameStateStack.Push(x); 
+                gamestateStack.Push(x); 
             }
-            gameStateStack.Push(halfMoveCounter);
+            gamestateStack.Push(halfMoveCounter);
 
             // Set up move bitboards
             originBB = (ulong)1 << inputMove.origin;
@@ -125,28 +129,28 @@ namespace woodfrog
             }
 
             // Move target piece to target square, and removed captured piece
-            pieceBitBoards[movedPiece] ^= originTargetBB;
-            pieceBitBoards[boardMailBox[inputMove.target]] &= ~targetBB;
+            pieces[movedPiece] ^= originTargetBB;
+            pieces[boardMailBox[inputMove.target]] &= ~targetBB;
             boardMailBox[inputMove.target] = movedPiece;
             boardMailBox[inputMove.origin] = 0;
 
             // If move is an en passant capture
-            if ((targetBB & enPassantBoard) != 0)
+            if ((targetBB & enPassant) != 0)
             {
-                pieceBitBoards[9 ^ (colourToPlay << 3)] &= ~((ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8)));
+                pieces[9 ^ (colourToPlay << 3)] &= ~((ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8)));
                 boardMailBox[inputMove.target - (colourToPlay == 0 ? 8 : -8)] = 0;
                 capturedPiece = 1 | ((colourToPlay ^ 1) << 3);
             }
-            enPassantBoard = 0;
+            enPassant = 0;
 
             // If the move pushed a pawn two foward, update the en passant board
             if(movedPiece == 1 && inputMove.target - inputMove.origin == 16)
             {
-                enPassantBoard |= (ulong)1 << (inputMove.origin + 8);
+                enPassant |= (ulong)1 << (inputMove.origin + 8);
             }
             else if(movedPiece == 9 && inputMove.origin - inputMove.target == 16)
             {
-                enPassantBoard |= (ulong)1 << (inputMove.origin - 8);
+                enPassant |= (ulong)1 << (inputMove.origin - 8);
             }
 
             // If a rook moved, remove castling rights for that direction for that colour
@@ -178,13 +182,13 @@ namespace woodfrog
                 {
                     boardMailBox[0] = 0;
                     boardMailBox[3] = 4;
-                    pieceBitBoards[4] ^= 0b1001;
+                    pieces[4] ^= 0b1001;
                 }
                 else if(inputMove.target == 6)
                 {
                     boardMailBox[7] = 0;
                     boardMailBox[5] = 4;
-                    pieceBitBoards[4] ^= 0b101 << 5;
+                    pieces[4] ^= 0b101 << 5;
                 }
             } 
             // Similar to above, but for black
@@ -197,13 +201,13 @@ namespace woodfrog
                 {
                     boardMailBox[56] = 0;
                     boardMailBox[58] = 12;
-                    pieceBitBoards[12] ^= (ulong)0b1001 << 56;
+                    pieces[12] ^= (ulong)0b1001 << 56;
                 }
                 else if (inputMove.target == 62)
                 {
                     boardMailBox[63] = 0;
                     boardMailBox[61] = 12;
-                    pieceBitBoards[12] ^= (ulong)0b101 << 61;
+                    pieces[12] ^= (ulong)0b101 << 61;
                 }
             }
 
@@ -211,11 +215,11 @@ namespace woodfrog
             else if(inputMove.promotionPiece != 0)
             {
                 boardMailBox[inputMove.target] = inputMove.promotionPiece;
-                pieceBitBoards[movedPiece] &= ~((ulong)1 << inputMove.target);
-                pieceBitBoards[inputMove.promotionPiece] |= (ulong)1 << inputMove.target;
+                pieces[movedPiece] &= ~((ulong)1 << inputMove.target);
+                pieces[inputMove.promotionPiece] |= (ulong)1 << inputMove.target;
             }
 
-            gameStateStack.Push((ulong)capturedPiece);
+            gamestateStack.Push((ulong)capturedPiece);
             colourToPlay ^= 1;
         }
 
@@ -224,13 +228,13 @@ namespace woodfrog
         {
             colourToPlay ^= 1;
 
-            capturedPiece = (int)gameStateStack.Pop();
-            halfMoveCounter = gameStateStack.Pop();
+            capturedPiece = (int)gamestateStack.Pop();
+            halfMoveCounter = gamestateStack.Pop();
             for(int x = 3; x >= 0; x--)
             {
-                castlingRights[x] = gameStateStack.Pop();
+                castlingRights[x] = gamestateStack.Pop();
             }
-            enPassantBoard = gameStateStack.Pop();
+            enPassant = gamestateStack.Pop();
             
 
             // Set up move bitboards
@@ -242,26 +246,26 @@ namespace woodfrog
             if (inputMove.promotionPiece != 0)
             {
                 boardMailBox[inputMove.target] = 1 | ((colourToPlay ^ 1) << 3);
-                pieceBitBoards[boardMailBox[inputMove.target]] |= (ulong)1 << inputMove.target;
-                pieceBitBoards[inputMove.promotionPiece] &= ~((ulong)1 << inputMove.target);
+                pieces[boardMailBox[inputMove.target]] |= (ulong)1 << inputMove.target;
+                pieces[inputMove.promotionPiece] &= ~((ulong)1 << inputMove.target);
             }
 
             // Move piece back to original square
-            pieceBitBoards[boardMailBox[inputMove.target]] ^= originTargetBB;
+            pieces[boardMailBox[inputMove.target]] ^= originTargetBB;
             boardMailBox[inputMove.origin] = boardMailBox[inputMove.target];
             boardMailBox[inputMove.target] = 0;
 
             // If the move was an en passant capture, put the pawn back in the correct position
-            if((enPassantBoard & ((ulong)1 << inputMove.target)) > 1)
+            if((enPassant & ((ulong)1 << inputMove.target)) > 1)
             {
-                pieceBitBoards[9 ^ (colourToPlay << 3)] |= (ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8));
+                pieces[9 ^ (colourToPlay << 3)] |= (ulong)1 << (inputMove.target - (colourToPlay == 0 ? 8 : -8));
                 boardMailBox[inputMove.target - (colourToPlay == 0 ? 8 : -8)] = capturedPiece;
             } 
             // Otherwise put captured piece back in the target square
             else
             {
                 boardMailBox[inputMove.target] = capturedPiece;
-                pieceBitBoards[capturedPiece] |= (ulong)1 << inputMove.target;
+                pieces[capturedPiece] |= (ulong)1 << inputMove.target;
             }
 
             // If the move was castling, put the rook back in the right place
@@ -271,13 +275,13 @@ namespace woodfrog
                 {
                     boardMailBox[0] = 4;
                     boardMailBox[3] = 0;
-                    pieceBitBoards[4] ^= 0b1001;
+                    pieces[4] ^= 0b1001;
                 }
                 else if (inputMove.target == 6)
                 {
                     boardMailBox[7] = 4;
                     boardMailBox[5] = 0;
-                    pieceBitBoards[4] ^= 0b101 << 5;
+                    pieces[4] ^= 0b101 << 5;
                 }
             }
             else if ((castlingRights[2] == 1 || castlingRights[3] == 1) && boardMailBox[inputMove.origin] == 14)
@@ -286,13 +290,13 @@ namespace woodfrog
                 {
                     boardMailBox[56] = 12;
                     boardMailBox[58] = 0;
-                    pieceBitBoards[12] ^= (ulong)0b1001 << 56;
+                    pieces[12] ^= (ulong)0b1001 << 56;
                 }
                 else if (inputMove.target == 62)
                 {
                     boardMailBox[63] = 12;
                     boardMailBox[61] = 0;
-                    pieceBitBoards[12] ^= (ulong)0b101 << 61;
+                    pieces[12] ^= (ulong)0b101 << 61;
                 }
             }
 
@@ -317,7 +321,7 @@ namespace woodfrog
                 // the corresponding type and colour
                 for (int x = 0; x < 64; x++)
                 {
-                    if ((pieceBitBoards[i] >> x & 1) == 1)
+                    if ((pieces[i] >> x & 1) == 1)
                     {
                         graphicBoard[x] = "w" + pieceLookup[i];
                     }
@@ -329,7 +333,7 @@ namespace woodfrog
             {
                 for (int x = 0; x < 64; x++)
                 {
-                    if ((pieceBitBoards[i] >> x & 1) == 1)
+                    if ((pieces[i] >> x & 1) == 1)
                     {
                         graphicBoard[x] = "b" + pieceLookup[i - 8];
                     }
@@ -348,7 +352,7 @@ namespace woodfrog
             }
 
             Console.Write("\n");
-            Console.WriteLine("EnPassantBoard: {0}", enPassantBoard);
+            Console.WriteLine("EnPassantBoard: {0}", enPassant);
 
             Console.Write("Castling Rights: ");
             for (int i = 0; i < 4; i++)

@@ -9,7 +9,7 @@ namespace woodfrog
         {
             MoveGen moveGenerator = new MoveGen();
 
-            Board gameBoard = new Board("5k1K/8/8/1pP5/5p2/p2p4/1P1P1P1P/8 w - b6 0 2");
+            Board gameBoard = new Board("8/5p2/3n4/8/4N3/8/3P4/8 w - - 0 1");
             gameBoard.printBoard();
 
             moveGenerator.generateMoves(gameBoard);

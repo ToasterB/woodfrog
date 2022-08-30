@@ -10,8 +10,8 @@ namespace woodfrog
     {
         // Bit board declarations
         public ulong[] pieces { get; private set; } = new ulong[16];  // 1 -> 6  (0001 -> 0110) = White Pawn, Knight, Bishop, Rook, Queen and King respectively
-                                                                              // 9 -> 14 (1001 -> 1110) = Black 
-                                                                              // 7 = Combined White Pieces      15 = Combined Black Pieces
+                                                                      // 9 -> 14 (1001 -> 1110) = Black 
+                                                                      // 7 = Combined White Pieces      15 = Combined Black Pieces
         public ulong enPassant { get; private set; }
 
         ulong[] castlingRights = new ulong[4];      // White Kingside, White Queenside, Black Kingside, Black Queenside
@@ -21,7 +21,7 @@ namespace woodfrog
         public List<Move> attackingMoveList = new List<Move>();
         public List<Move> quietMoveList = new List<Move>();
 
-        // Reduntant piece positions, indexed by square. Makes it easier to find which pieces are one which squares
+        // Reduntant piece positions, indexed by square. Makes it easier to find which pieces are on which squares
         int[] boardMailBox = new int[64]; 
 
         public Board(string fen)

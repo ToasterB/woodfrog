@@ -14,11 +14,12 @@ namespace woodfrog
             if(board.colourToPlay == 0)
             {
                 whitePawnMoves(board.pieces[15], board.pieces[7], board.pieces[1], board.enPassant, board);
-                whiteKnightMoves(board.pieces[15], board.pieces[7], board.pieces[2], board);
+                knightMoves(board.pieces[15], board.pieces[7], board.pieces[2], board);
             } 
             else
             {
                 blackPawnMoves(board.pieces[15], board.pieces[7], board.pieces[9], board.enPassant, board);
+                knightMoves(board.pieces[7], board.pieces[15], board.pieces[10], board);
             }
             
         }
@@ -30,6 +31,9 @@ namespace woodfrog
         private ulong pawnAdvance;
         private ulong pawnDoubleAdvance;
 
+
+        // Pawns moving in only one direction means it's easier to give each colour it's own function, rather than using
+        // one togglable one
         private void whitePawnMoves(ulong blackPieces, ulong whitePieces, ulong whitePawns, ulong enPassants, Board board)
         {
             // The hex constants represent a board of 1's with either the H or A column set to 0's, effectively preventing pawns on the opposite outside
@@ -236,38 +240,41 @@ namespace woodfrog
         int[] knight = new int[2];
         ulong[] knightAttacks = new ulong[2];
 
-        private void whiteKnightMoves(ulong blackPieces, ulong whitePieces, ulong whiteKnights, Board board)
+        private void knightMoves(ulong friendlyPieces, ulong hostilePieces, ulong friendlyKnights, Board board)
         {
-            // By counting the number of 0's before the most significant bit, and before the least significant bit, 
-            // we can find the square address's of the two knights
-            Array.Clear(knight, 0, 2);
-            knight[0] = BitOperations.TrailingZeroCount(whiteKnights);
-            knight[1] = 63 - BitOperations.LeadingZeroCount(whiteKnights);
-
-            // If there is at least one knight on the board generate its moves
-            if((knight[0] | knight[1]) > 0)
+            if (friendlyKnights != 0)
             {
-                knightAttacks[0] = knightPatterns[knight[0]] & ~whitePieces;
-                knightAttacks[1] = knightPatterns[knight[1]] & ~whitePieces;
-                for (int x = 0; x < 2; x++)
+                // By counting the number of 0's before the most significant bit, and before the least significant bit, 
+                // we can find the square addresses of the two knights
+                Array.Clear(knight, 0, 2);
+                knight[0] = BitOperations.TrailingZeroCount(friendlyKnights);
+                knight[1] = 63 - BitOperations.LeadingZeroCount(friendlyKnights);
+
+                // If there is at least one knight on the board generate its moves
+                if ((knight[0] | knight[1]) >= 0)
                 {
-                    for (int i = 0; i < 64; i++)
+                    knightAttacks[0] = knightPatterns[knight[0]] & ~friendlyPieces;
+                    knightAttacks[1] = knightPatterns[knight[1]] & ~friendlyPieces;
+                    for (int x = 0; x < 2; x++)
                     {
-                        if ((1 & blackPieces & knightAttacks[x]) == 1)
+                        for (int i = 0; i < 64; i++)
                         {
-                            board.attackingMoveList.Add(new Move(knight[x], i, 0));
-                        }
-                        else if ((1 & knightAttacks[x]) == 1)
-                        {
-                            board.quietMoveList.Add(new Move(knight[x], i, 0));
+                            if ((1 & (hostilePieces >> i) & knightAttacks[x]) == 1)
+                            {
+                                board.attackingMoveList.Add(new Move(knight[x], i, 0));
+                            }
+                            else if ((1 & knightAttacks[x]) == 1)
+                            {
+                                board.quietMoveList.Add(new Move(knight[x], i, 0));
+                            }
+
+
+                            knightAttacks[x] >>= 1;
                         }
 
-                        knight[x] >>= 1;
-                        knightAttacks[x] >>= 1;
+                        // Don't repeat the move generation if there's only one knight on the board
+                        if (knight[0] == knight[1]) break;
                     }
-
-                    // Don't repeat the move generation if there's only one knight on the board
-                    if (knight[0] == knight[1]) break;
                 }
             }
         }
